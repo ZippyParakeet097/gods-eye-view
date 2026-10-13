@@ -1,7 +1,12 @@
 /** Photon/OpenStreetMap place-search adapter. */
 const PHOTON_ENDPOINT = 'https://photon.komoot.io/api/';
 
-/** Photon is a courtesy service; fail fast rather than hold the search open. */
+/**
+ * Photon is a courtesy service; fail fast rather than hold the search open.
+ * This is ONE budget for the biased and unbiased passes together: a per-request
+ * 6 s let two slow passes spend the place search's whole 12 s, so the chain
+ * aborted before the Nominatim fallback ever ran and "Lucknow" was not found.
+ */
 const PHOTON_TIMEOUT_MS = 6000;
 
 /** Bounded memo — a search box re-issues the same query on every keystroke. */
@@ -302,6 +307,7 @@ export async function geocodeKeylessWithOutcome(
     signal,
     cache = photonCache,
     endpoint = PHOTON_ENDPOINT,
+    timeoutMs = PHOTON_TIMEOUT_MS,
   } = {},
 ) {
   signal?.throwIfAborted();
@@ -315,11 +321,11 @@ export async function geocodeKeylessWithOutcome(
     return { place: cached.place, answered: true };
   cache.delete(memoKey);
 
+  const deadline = AbortSignal.timeout(timeoutMs);
   /** One request: the feature array Photon returned, or null if it did not answer. */
   const ask = async (url) => {
     try {
       signal?.throwIfAborted();
-      const deadline = AbortSignal.timeout(PHOTON_TIMEOUT_MS);
       const requestSignal = signal
         ? AbortSignal.any([signal, deadline])
         : deadline;

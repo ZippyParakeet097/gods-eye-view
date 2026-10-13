@@ -1,5 +1,10 @@
 # Changelog
 
+- Keyless place search finds cities like Lucknow when Photon is slow: Photon's
+  biased and unbiased passes now share one 6 s budget, so the Nominatim fallback
+  always gets its turn before the 12 s search limit. A city geocoded without a
+  viewport frames a 40 km metro box instead of landing at building range.
+
 - Treat explicitly current, complete empty vessel coverage as a successful update,
   clearing obsolete contacts while retaining stale or incomplete snapshots.
 

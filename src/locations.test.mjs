@@ -585,6 +585,22 @@ test('beforeFly runs once after resolution and immediately before the flight', a
   assert.equal(viewer.flights.length, 1);
 });
 
+test('a city geocoded without a viewport frames the metro box, not building range', async () => {
+  // Photon reports most towns as a bare point; "Lucknow" used to land at 250 m.
+  const viewer = stubViewer();
+  const lucknow = {
+    formatted_address: 'Lucknow, Uttar Pradesh, India',
+    types: ['locality', 'political'],
+    geometry: { location: { lat: 26.8381, lng: 80.9346 } },
+  };
+  const result = await runSearch(viewer, { recoverNearView: async () => null }, { result: lucknow, query: 'lucknow' });
+  assert.equal(result.navigationMode, 'city-overview');
+  const box = flownRectangleDegrees(viewer);
+  assert.ok(box.south < 26.8381 && box.north > 26.8381);
+  assert.ok(box.west < 80.9346 && box.east > 80.9346);
+  assert.ok(box.north - box.south > 0.3, 'expected a metro-scale box');
+});
+
 test('a final authority veto returns cancellation without issuing a flight', async () => {
   const viewer = stubViewer();
   const result = await runSearch(viewer, { beforeFly: () => false });

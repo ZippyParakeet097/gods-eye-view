@@ -447,6 +447,21 @@ test('a biased pass that never answered leaves the whole lookup unanswered', asy
   assert.equal(urls.length, 2);
 });
 
+test('both Photon passes share one deadline, leaving the chain time for Nominatim', async () => {
+  // A per-request timeout let a slow biased pass and a slow unbiased pass spend
+  // the place search's whole 12 s, so the Nominatim fallback never ran.
+  const hang = (_url, { signal }) => new Promise((_resolve, reject) => {
+    if (signal.aborted) return reject(signal.reason);
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+  });
+  const started = Date.now();
+  const outcome = await geocodeKeylessWithOutcome('deadline probe', {
+    bias: '30.20,-97.80|30.30,-97.70', fetchImpl: hang, cache: new Map(), timeoutMs: 100,
+  });
+  assert.deepEqual(outcome, { place: null, answered: false });
+  assert.ok(Date.now() - started < 190, 'the unbiased pass must not get a fresh budget');
+});
+
 function readGeocodingConsumer(file) {
   const files = file === 'annotations/annotationResolver.js'
     ? [file, 'annotations/resolver.js'] : [file];

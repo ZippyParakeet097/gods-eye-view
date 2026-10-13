@@ -906,9 +906,12 @@ export async function searchAndFlyTo(viewer, query, options = {}) {
       !explicitOverview &&
       (navigationMode === 'city-overview' ||
         navigationMode === 'region-overview');
-    const framedViewport = gateFraming
-      ? placeFramingViewport(viewport, lat, lng, types)
-      : viewport;
+    const framedViewport =
+      !viewport && navigationMode === 'city-overview'
+        ? metroViewport(lat, lng)
+        : gateFraming
+          ? placeFramingViewport(viewport, lat, lng, types)
+          : viewport;
     const flight = flyToViewportBounds(viewer, framedViewport, {
       duration,
       navigationMode,
@@ -1207,7 +1210,17 @@ export function placeFramingViewport(
     metrics.centerLng,
   );
   if (offsetKm <= metrics.spanKm * PLACE_ANCHOR_OFFSET_RATIO) return viewport;
+  return metroViewport(anchorLat, anchorLng);
+}
 
+/**
+ * The 40 x 40 km metro box centred on an anchor. Also stands in for a city
+ * geocode that arrives with no viewport at all — Photon reports most towns as
+ * a bare point, and without a box the flight fell through to building range,
+ * framing "Lucknow" from 250 m.
+ */
+export function metroViewport(anchorLat, anchorLng) {
+  if (!Number.isFinite(anchorLat) || !Number.isFinite(anchorLng)) return null;
   const latHalfDeg = PLACE_FALLBACK_HALF_SPAN_KM / KM_PER_DEGREE;
   // Guard the cosine so a near-polar anchor cannot blow the longitude half-extent up.
   const cosLat = Math.max(0.05, Math.cos(Cesium.Math.toRadians(anchorLat)));
